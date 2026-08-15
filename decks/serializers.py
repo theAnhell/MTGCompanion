@@ -29,8 +29,10 @@ class DeckSerializer(serializers.Serializer):
     cardCount = serializers.SerializerMethodField()
 
     def get_cardCount(self, obj) -> int:
+        # Sum quantity, not row count — Moxfield collapses repeated basics
+        # (e.g. "3 Plains") into a single row with quantity=3.
         # `cards` is prefetched by the view so this doesn't re-query per row.
-        return len(obj.cards.all())
+        return sum(c.quantity for c in obj.cards.all())
 
 
 class DeckDetailSerializer(DeckSerializer):
