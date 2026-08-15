@@ -46,6 +46,14 @@ export interface OwnedDeckDetail extends OwnedDeck {
   cards: OwnedDeckCard[]
 }
 
+export interface BinderCard {
+  cardName: string
+  setCode: string | null
+  collectorNumber: string | null
+  quantity: number
+  isFoil: boolean
+}
+
 export interface DeckStat {
   commanderId: string
   commanderName: string

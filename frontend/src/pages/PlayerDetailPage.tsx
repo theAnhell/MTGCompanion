@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { Layers, Plus, Trash2 } from 'lucide-react'
 import { deleteDeck, getPlayer, getPlayerSummary, listPlayerDecks } from '../lib/api'
 import { useApi } from '../lib/useApi'
 import { LoadingState, ErrorState } from '../components/AsyncState'
@@ -100,16 +100,25 @@ export function PlayerDetailPage() {
       <SectionCard
         title="Owned decks"
         action={
-          !showImportForm && (
-            <button
-              type="button"
-              onClick={() => setShowImportForm(true)}
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/players/${id}/binder`}
               className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-secondary hover:bg-primary/5"
             >
-              <Plus size={14} />
-              Import deck
-            </button>
-          )
+              <Layers size={14} />
+              Binder
+            </Link>
+            {!showImportForm && (
+              <button
+                type="button"
+                onClick={() => setShowImportForm(true)}
+                className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-secondary hover:bg-primary/5"
+              >
+                <Plus size={14} />
+                Import deck
+              </button>
+            )}
+          </div>
         }
       >
         {showImportForm && (

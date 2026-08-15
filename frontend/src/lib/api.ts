@@ -1,4 +1,4 @@
-import type { Commander, OwnedDeck, OwnedDeckDetail, Player, PlayerSummary, YearlySummary } from './types'
+import type { BinderCard, Commander, OwnedDeck, OwnedDeckDetail, Player, PlayerSummary, YearlySummary } from './types'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -79,4 +79,15 @@ export function replaceDeckCards(id: string, exportText: string): Promise<OwnedD
 
 export function deleteDeck(id: string): Promise<void> {
   return request<void>(`/decks/${id}`, { method: 'DELETE' })
+}
+
+export function getBinder(playerId: string): Promise<BinderCard[]> {
+  return request<BinderCard[]>(`/players/${playerId}/binder`)
+}
+
+export function replaceBinder(playerId: string, exportText: string): Promise<BinderCard[]> {
+  return request<BinderCard[]>(`/players/${playerId}/binder`, {
+    method: 'PUT',
+    body: JSON.stringify({ exportText }),
+  })
 }

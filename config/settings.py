@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "commanders",
     "games",
     "decks",
+    "binder",
     "stats",
     "imports",
 ]

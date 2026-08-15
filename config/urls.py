@@ -9,6 +9,7 @@ urlpatterns = [
     path("api/v1/", include("commanders.urls")),
     path("api/v1/", include("games.urls")),
     path("api/v1/", include("decks.urls")),
+    path("api/v1/", include("binder.urls")),
     path("api/v1/", include("stats.urls")),
 ]
 
