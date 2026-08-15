@@ -1,4 +1,16 @@
-import type { BinderCard, Commander, OwnedDeck, OwnedDeckDetail, Player, PlayerSummary, YearlySummary } from './types'
+import type {
+  ArchetypeStats,
+  BinderCard,
+  CardSyncStatus,
+  Commander,
+  OwnedDeck,
+  OwnedDeckDetail,
+  Player,
+  PlayerSummary,
+  Recommendation,
+  RecommendationStatus,
+  YearlySummary,
+} from './types'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -90,4 +102,34 @@ export function replaceBinder(playerId: string, exportText: string): Promise<Bin
     method: 'PUT',
     body: JSON.stringify({ exportText }),
   })
+}
+
+export function getRecommendations(deckId: string): Promise<Recommendation[]> {
+  return request<Recommendation[]>(`/decks/${deckId}/recommendations`)
+}
+
+export function generateRecommendations(deckId: string): Promise<Recommendation[]> {
+  return request<Recommendation[]>(`/decks/${deckId}/recommendations/generate`, { method: 'POST' })
+}
+
+export function updateRecommendation(
+  id: string,
+  update: { status?: RecommendationStatus; applied?: boolean },
+): Promise<Recommendation> {
+  return request<Recommendation>(`/recommendations/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(update),
+  })
+}
+
+export function getArchetypeStats(deckId: string): Promise<ArchetypeStats> {
+  return request<ArchetypeStats>(`/decks/${deckId}/archetype-stats`)
+}
+
+export function getCardSyncStatus(): Promise<CardSyncStatus> {
+  return request<CardSyncStatus>('/cards/sync-status')
+}
+
+export function syncCards(): Promise<CardSyncStatus> {
+  return request<CardSyncStatus>('/cards/sync', { method: 'POST' })
 }

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    DeckArchetypeStatsView,
     DeckCardsView,
     DeckDetailView,
     DeckListCreateView,
@@ -14,4 +15,5 @@ urlpatterns = [
     path("decks", DeckListCreateView.as_view()),
     path("decks/<str:id>", DeckDetailView.as_view()),
     path("decks/<str:id>/cards", DeckCardsView.as_view()),
+    path("decks/<str:id>/archetype-stats", DeckArchetypeStatsView.as_view()),
 ]

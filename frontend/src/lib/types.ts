@@ -18,6 +18,7 @@ export interface Commander {
   cmc: number | null
   deckName: string | null
   decklistUrl: string | null
+  edhrecUrl: string
 }
 
 export interface OwnedDeckCard {
@@ -39,6 +40,7 @@ export interface OwnedDeck {
   source: string
   moxfieldDeckId: string | null
   moxfieldUrl: string | null
+  edhrecUrl: string
   cardCount: number
 }
 
@@ -52,6 +54,35 @@ export interface BinderCard {
   collectorNumber: string | null
   quantity: number
   isFoil: boolean
+}
+
+export type RecommendationAction = 'add' | 'remove'
+export type RecommendationStatus = 'proposed' | 'approved' | 'ignored'
+export type ArchetypeRole = 'ramp' | 'draw' | 'removal' | 'land'
+
+export interface Recommendation {
+  id: string
+  deckId: string
+  action: RecommendationAction
+  cardName: string
+  inclusionRate: number
+  role: ArchetypeRole | null
+  status: RecommendationStatus
+  appliedAt: string | null
+  createdAt: string
+}
+
+export interface ArchetypeRoleStat {
+  count: number
+  target: number
+  met: boolean
+}
+
+export type ArchetypeStats = Record<ArchetypeRole, ArchetypeRoleStat>
+
+export interface CardSyncStatus {
+  cardCount: number
+  syncedAt: string | null
 }
 
 export interface DeckStat {

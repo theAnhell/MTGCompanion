@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from commanders.services import get_edhrec_url
+
 
 class RetiredDeckSerializer(serializers.Serializer):
     commanderId = serializers.UUIDField(source="commander_id")
@@ -26,6 +28,7 @@ class DeckSerializer(serializers.Serializer):
     source = serializers.CharField()
     moxfieldDeckId = serializers.CharField(source="moxfield_deck_id", allow_null=True)
     moxfieldUrl = serializers.CharField(source="moxfield_url", allow_null=True)
+    edhrecUrl = serializers.SerializerMethodField()
     cardCount = serializers.SerializerMethodField()
 
     def get_cardCount(self, obj) -> int:
@@ -33,6 +36,9 @@ class DeckSerializer(serializers.Serializer):
         # (e.g. "3 Plains") into a single row with quantity=3.
         # `cards` is prefetched by the view so this doesn't re-query per row.
         return sum(c.quantity for c in obj.cards.all())
+
+    def get_edhrecUrl(self, obj) -> str:
+        return get_edhrec_url(obj.commander)
 
 
 class DeckDetailSerializer(DeckSerializer):

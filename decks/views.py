@@ -1,9 +1,11 @@
+from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
+from cards.services import get_deck_role_counts
 from commanders.models import Commander
 from imports.moxfield_parser import extract_moxfield_deck_id, is_commander_card, parse_moxfield_export
 from players.services import get_family_ids, resolve_canonical_player
@@ -130,6 +132,26 @@ class DeckDetailView(APIView):
             raise NotFound(f"Deck not found: {id}")
         deck.delete()
         return Response(status=HTTP_204_NO_CONTENT)
+
+
+class DeckArchetypeStatsView(APIView):
+    def get(self, request, id):
+        if not Deck.objects.filter(pk=id).exists():
+            raise NotFound(f"Deck not found: {id}")
+
+        counts = get_deck_role_counts(id)
+        targets = {
+            "ramp": settings.DECK_TARGET_RAMP,
+            "draw": settings.DECK_TARGET_DRAW,
+            "removal": settings.DECK_TARGET_REMOVAL,
+            "land": settings.DECK_TARGET_LANDS,
+        }
+        return Response(
+            {
+                role: {"count": counts[role], "target": target, "met": counts[role] >= target}
+                for role, target in targets.items()
+            }
+        )
 
 
 class DeckCardsView(APIView):

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Layers, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, Layers, Plus, Trash2 } from 'lucide-react'
 import { deleteDeck, getPlayer, getPlayerSummary, listPlayerDecks } from '../lib/api'
 import { useApi } from '../lib/useApi'
 import { LoadingState, ErrorState } from '../components/AsyncState'
@@ -146,6 +146,15 @@ export function PlayerDetailPage() {
                   <span className="text-muted">{deck.cardCount} cards</span>
                   {deck.source === 'moxfield' && <Badge>Moxfield</Badge>}
                 </Link>
+                <a
+                  href={deck.edhrecUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted hover:bg-primary/5 hover:text-series-1"
+                >
+                  <ExternalLink size={12} />
+                  EDHREC
+                </a>
                 <button
                   type="button"
                   onClick={() => handleDeleteDeck(deck.id)}

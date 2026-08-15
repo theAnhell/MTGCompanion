@@ -29,16 +29,21 @@ export function CommanderDetailPage() {
             <StatTile label="CMC" value={commander.cmc ?? '—'} />
             <StatTile label="EDHREC rank" value={commander.edhrecRank ?? '—'} />
           </div>
-          {commander.decklistUrl && (
-            <a
-              href={commander.decklistUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-series-1 hover:underline"
-            >
-              {commander.deckName ?? 'View decklist'} ↗
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {commander.decklistUrl && (
+              <a
+                href={commander.decklistUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-series-1 hover:underline"
+              >
+                {commander.deckName ?? 'View decklist'} ↗
+              </a>
+            )}
+            <a href={commander.edhrecUrl} target="_blank" rel="noreferrer" className="text-sm text-series-1 hover:underline">
+              View on EDHREC ↗
             </a>
-          )}
+          </div>
         </div>
       </div>
 

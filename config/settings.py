@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     "games",
     "decks",
     "binder",
+    "cards",
+    "recommendations",
     "stats",
     "imports",
 ]
@@ -108,3 +110,15 @@ PLAYER_MERGES_PATH = env("PLAYER_MERGES_PATH", default=str(BASE_DIR / "data" / "
 MOXFIELD_DECKS_CONFIG_PATH = env(
     "MOXFIELD_DECKS_CONFIG_PATH", default=str(BASE_DIR / "data" / "moxfield-decks.json")
 )
+
+# EDHREC inclusion-rate cutoffs (%) for the recommendation engine: a
+# collection card is worth suggesting as an add once this popular; a card
+# already in the deck is worth suggesting as a cut once this rare.
+RECOMMENDATION_ADD_THRESHOLD = env.float("RECOMMENDATION_ADD_THRESHOLD", default=60.0)
+RECOMMENDATION_REMOVE_THRESHOLD = env.float("RECOMMENDATION_REMOVE_THRESHOLD", default=15.0)
+
+# Target counts for the archetype/deckbuilding-requirements check (Card.roles).
+DECK_TARGET_RAMP = env.int("DECK_TARGET_RAMP", default=10)
+DECK_TARGET_DRAW = env.int("DECK_TARGET_DRAW", default=10)
+DECK_TARGET_REMOVAL = env.int("DECK_TARGET_REMOVAL", default=10)
+DECK_TARGET_LANDS = env.int("DECK_TARGET_LANDS", default=37)

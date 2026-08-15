@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { RefreshCw, Trash2 } from 'lucide-react'
-import { ApiError, deleteDeck, getDeck, replaceDeckCards } from '../lib/api'
+import { ApiError, deleteDeck, getArchetypeStats, getDeck, replaceDeckCards } from '../lib/api'
 import { useApi } from '../lib/useApi'
 import { LoadingState, ErrorState } from '../components/AsyncState'
 import { SectionCard } from '../components/SectionCard'
 import { StatTile } from '../components/StatTile'
+import { ArchetypeStatTile } from '../components/ArchetypeStatTile'
 import { Badge } from '../components/Badge'
 import { DataTable, type Column } from '../components/DataTable'
+import { RecommendationsPanel } from '../components/RecommendationsPanel'
 import type { OwnedDeckCard } from '../lib/types'
 
 const cardColumns: Column<OwnedDeckCard>[] = [
@@ -32,6 +34,7 @@ export function DeckDetailPage() {
   const navigate = useNavigate()
   const [refreshKey, setRefreshKey] = useState(0)
   const { data: deck, loading, error } = useApi(() => getDeck(id), [id, refreshKey])
+  const { data: archetype } = useApi(() => getArchetypeStats(id), [id, refreshKey])
   const [reimporting, setReimporting] = useState(false)
   const [exportText, setExportText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -95,7 +98,7 @@ export function DeckDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Cards" value={deck.cardCount} />
         <StatTile label="Source" value={deck.source} />
         {deck.moxfieldUrl && (
@@ -105,7 +108,23 @@ export function DeckDetailPage() {
             </a>
           </div>
         )}
+        <div className="flex items-center rounded-lg border border-border bg-surface px-4 py-3">
+          <a href={deck.edhrecUrl} target="_blank" rel="noreferrer" className="text-sm text-series-1 hover:underline">
+            View on EDHREC ↗
+          </a>
+        </div>
       </div>
+
+      {archetype && (
+        <SectionCard title="Archetype">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <ArchetypeStatTile label="Ramp" stat={archetype.ramp} />
+            <ArchetypeStatTile label="Draw" stat={archetype.draw} />
+            <ArchetypeStatTile label="Removal" stat={archetype.removal} />
+            <ArchetypeStatTile label="Lands" stat={archetype.land} />
+          </div>
+        </SectionCard>
+      )}
 
       {reimporting && (
         <SectionCard title="Re-import decklist">
@@ -140,6 +159,8 @@ export function DeckDetailPage() {
           </form>
         </SectionCard>
       )}
+
+      <RecommendationsPanel deckId={id} />
 
       <SectionCard title={`${deck.cardCount} cards`}>
         <DataTable columns={cardColumns} rows={deck.cards} rowKey={(c) => `${c.cardName}-${c.setCode}-${c.collectorNumber}`} />

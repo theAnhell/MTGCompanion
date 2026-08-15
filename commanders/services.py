@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from datetime import timedelta
 
 import requests
@@ -8,6 +9,7 @@ from django.utils import timezone
 from .models import Commander, CommanderCardStat
 
 EDHREC_JSON_URL = "https://json.edhrec.com/pages/commanders/{slug}.json"
+EDHREC_COMMANDER_URL = "https://edhrec.com/commanders/{slug}"
 
 # The exhaustive, non-overlapping card-type breakdown of a commander's page.
 # "New Cards" / "Top Cards" / "High Synergy Cards" / "Game Changers" are
@@ -29,16 +31,44 @@ EDHREC_TYPE_CATEGORY_TAGS = {
 STALE_AFTER = timedelta(days=14)
 
 
-def slugify_commander_name(name: str) -> str:
-    """Best-effort EDHREC slug: lowercase, punctuation stripped, spaces
-    hyphenated. Doesn't handle partner/background combined-slug URLs — use
-    Commander.edhrec_slug to override those."""
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower())
+def _slugify_single_name(name: str) -> str:
+    """Transliterate accents to ASCII (e.g. "Éowyn" -> "eowyn" — a bare
+    character-class strip would drop the E entirely), drop apostrophes
+    rather than hyphenating them (EDHREC's own convention — "Saheeli, the
+    Sun's Brilliance" -> "saheeli-the-suns-brilliance", not "...-sun-s-..."),
+    lowercase, remaining punctuation hyphenated."""
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    ascii_name = ascii_name.replace("'", "")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_name.lower())
     return slug.strip("-")
+
+
+def slugify_commander_name(name: str) -> str:
+    """Best-effort EDHREC slug, verified against EDHREC's real URLs for both
+    compound-name conventions used in this app's data:
+    - Partner/background pairs ("A || B (Partners)") get each half's own
+      slug concatenated — no "-partners" suffix.
+    - Modal double-faced commanders ("A // B") use only the front face's
+      slug; EDHREC doesn't slug the back face at all.
+    Anything else this can't infer (e.g. a genuinely different naming
+    scheme) should use Commander.edhrec_slug as a manual override."""
+    if " || " in name:
+        left, right = name.split(" || ", 1)
+        right = re.sub(r"\s*\(partners\)\s*$", "", right, flags=re.IGNORECASE).strip()
+        return f"{_slugify_single_name(left)}-{_slugify_single_name(right)}"
+    if " // " in name:
+        front_face = name.split(" // ", 1)[0]
+        return _slugify_single_name(front_face)
+    return _slugify_single_name(name)
 
 
 def is_stale(commander: Commander) -> bool:
     return commander.edhrec_synced_at is None or (timezone.now() - commander.edhrec_synced_at) > STALE_AFTER
+
+
+def get_edhrec_url(commander: Commander) -> str:
+    slug = commander.edhrec_slug or slugify_commander_name(commander.name)
+    return EDHREC_COMMANDER_URL.format(slug=slug)
 
 
 def _fetch_edhrec_payload(slug: str) -> dict:
