@@ -88,6 +88,7 @@ export interface CardSyncStatus {
 export interface DeckStat {
   commanderId: string
   commanderName: string
+  edhrecRank: number | null
   gamesPlayed: number
   wins: number
   winRate: number

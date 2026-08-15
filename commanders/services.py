@@ -101,6 +101,18 @@ def _flatten_card_stats(payload: dict) -> list[dict]:
     return list(by_name.values())
 
 
+def _extract_current_rank(payload: dict) -> int | None:
+    """EDHREC has no single flat "rank" field — panels.rank_over_time is a
+    dict keyed by month ("2026-07-01") tracking rank history for the
+    site's trend chart; the latest month's `rank` is the commander's current
+    overall EDHREC popularity rank."""
+    rank_over_time = payload.get("panels", {}).get("rank_over_time")
+    if not rank_over_time:
+        return None
+    latest_month = max(rank_over_time.keys())
+    return rank_over_time[latest_month].get("rank")
+
+
 def sync_commander_card_stats(commander_id) -> int:
     """Fetches this commander's EDHREC page and full-replaces its cached card
     stats. Returns the number of cards synced."""
@@ -108,13 +120,16 @@ def sync_commander_card_stats(commander_id) -> int:
     slug = commander.edhrec_slug or slugify_commander_name(commander.name)
     payload = _fetch_edhrec_payload(slug)
     rows = _flatten_card_stats(payload)
+    rank = _extract_current_rank(payload)
 
     with transaction.atomic():
         CommanderCardStat.objects.filter(commander=commander).delete()
         if rows:
             CommanderCardStat.objects.bulk_create([CommanderCardStat(commander=commander, **row) for row in rows])
         commander.edhrec_synced_at = timezone.now()
-        commander.save(update_fields=["edhrec_synced_at", "updated_at"])
+        if rank is not None:
+            commander.edhrec_rank = rank
+        commander.save(update_fields=["edhrec_rank", "edhrec_synced_at", "updated_at"])
 
     return len(rows)
 

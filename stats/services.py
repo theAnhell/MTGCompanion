@@ -17,6 +17,7 @@ from .dates import days_since, round1, ymd
 class DeckAgg:
     commander_id: object
     commander_name: str
+    edhrec_rank: object = None
     count: int = 0
     wins: int = 0
     last_played: object = None
@@ -32,7 +33,11 @@ def build_deck_map(rows) -> dict:
     for row in rows:
         agg = deck_map.get(row.commander_id)
         if agg is None:
-            agg = DeckAgg(commander_id=row.commander_id, commander_name=row.commander.name)
+            agg = DeckAgg(
+                commander_id=row.commander_id,
+                commander_name=row.commander.name,
+                edhrec_rank=row.commander.edhrec_rank,
+            )
             deck_map[row.commander_id] = agg
         agg.count += 1
         created_on = row.game.created_on
@@ -55,6 +60,7 @@ def to_deck_stat_dto(agg: DeckAgg, retired_set: set) -> dict:
     return {
         "commanderId": str(agg.commander_id),
         "commanderName": agg.commander_name,
+        "edhrecRank": agg.edhrec_rank,
         "gamesPlayed": agg.count,
         "wins": agg.wins,
         "winRate": round1((agg.wins / agg.count) * 100) if agg.count else 0,

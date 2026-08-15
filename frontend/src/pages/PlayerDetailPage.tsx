@@ -27,6 +27,12 @@ const deckColumns: Column<DeckStat>[] = [
       </span>
     ),
   },
+  {
+    header: 'EDHREC rank',
+    align: 'right',
+    sortValue: (d) => d.edhrecRank ?? Number.MAX_SAFE_INTEGER,
+    render: (d) => d.edhrecRank ?? '—',
+  },
   { header: 'Games', align: 'right', sortValue: (d) => d.gamesPlayed, render: (d) => d.gamesPlayed },
   { header: 'Wins', align: 'right', sortValue: (d) => d.wins, render: (d) => d.wins },
   { header: 'Win rate', align: 'right', sortValue: (d) => d.winRate, render: (d) => `${d.winRate}%` },
