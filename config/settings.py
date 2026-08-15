@@ -1,0 +1,102 @@
+import os
+from pathlib import Path
+
+import environ
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / ".env")
+
+SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-only-secret-key")
+DEBUG = env.bool("DJANGO_DEBUG", default=True)
+ALLOWED_HOSTS = ["*"]
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "players",
+    "commanders",
+    "games",
+    "decks",
+    "stats",
+    "imports",
+]
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+ROOT_URLCONF = "config.urls"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+DATABASES = {
+    "default": env.db("DATABASE_URL"),
+}
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
+USE_I18N = True
+
+# The source export's timestamps carry no timezone info (MythicTrack app
+# writes local wall-clock time as a naive string) and the Node version stores
+# them as-is with no conversion. Keeping the whole project naive avoids
+# Django silently reinterpreting those timestamps as UTC.
+USE_TZ = False
+
+STATIC_URL = "static/"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
+    "DEFAULT_PAGINATION_CLASS": None,
+    "EXCEPTION_HANDLER": "config.exceptions.exception_handler",
+}
+
+# Mirrors the Node import scripts' env-driven file paths (see MythicTrack/.env.example).
+GAMES_EXPORT_PATH = env("GAMES_EXPORT_PATH", default=str(BASE_DIR / "data" / "AllGames.json"))
+RETIRED_GLOBAL_PATH = env("RETIRED_GLOBAL_PATH", default=str(BASE_DIR / "data" / "retired_decks.json"))
+RETIRED_DIR_PATH = env("RETIRED_DIR_PATH", default=str(BASE_DIR / "data" / "retired"))
+PLAYER_MERGES_PATH = env("PLAYER_MERGES_PATH", default=str(BASE_DIR / "data" / "player-merges.json"))
+MOXFIELD_DECKS_CONFIG_PATH = env(
+    "MOXFIELD_DECKS_CONFIG_PATH", default=str(BASE_DIR / "data" / "moxfield-decks.json")
+)
