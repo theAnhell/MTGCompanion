@@ -1,4 +1,4 @@
-from .models import DeckCard, RetiredDeck
+from .models import Deck, DeckCard, RetiredDeck
 
 
 def list_retired_decks_for_family(player_family_ids: list):
@@ -41,14 +41,29 @@ def bulk_insert_retired_decks(rows: list[dict]) -> None:
     )
 
 
-def list_deck_cards(commander_id):
-    return DeckCard.objects.filter(commander_id=commander_id).order_by("card_name")
+def list_deck_cards(deck_id):
+    return DeckCard.objects.filter(deck_id=deck_id).order_by("card_name")
 
 
-def replace_deck_cards(commander_id, rows: list[dict]) -> None:
-    """Fully replaces a commander's stored decklist (a Moxfield export is a
+def replace_deck_cards(deck_id, rows: list[dict]) -> None:
+    """Fully replaces a deck's stored decklist (a Moxfield export is a
     snapshot, not a diff), mirroring deck-cards.repository#replaceDeckCards."""
-    DeckCard.objects.filter(commander_id=commander_id).delete()
+    DeckCard.objects.filter(deck_id=deck_id).delete()
     if not rows:
         return
-    DeckCard.objects.bulk_create([DeckCard(commander_id=commander_id, **row) for row in rows])
+    DeckCard.objects.bulk_create([DeckCard(deck_id=deck_id, **row) for row in rows])
+
+
+def list_player_decks(player_id):
+    return (
+        Deck.objects.filter(owner_id=player_id)
+        .select_related("commander", "owner")
+        .prefetch_related("cards")
+        .order_by("commander__name")
+    )
+
+
+def get_deck(deck_id):
+    return (
+        Deck.objects.select_related("commander", "owner").prefetch_related("cards").filter(pk=deck_id).first()
+    )

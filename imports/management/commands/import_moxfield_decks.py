@@ -1,5 +1,4 @@
 import json
-import re
 from pathlib import Path
 
 from django.conf import settings
@@ -7,12 +6,14 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from commanders.models import Commander
+from decks.models import Deck
 from decks.services import replace_deck_cards
-from imports.moxfield_parser import normalize_card_name, parse_moxfield_export
+from imports.moxfield_parser import extract_moxfield_deck_id, is_commander_card, parse_moxfield_export
+from players.models import Player
 
 
 class Command(BaseCommand):
-    help = "Sync deck_cards from Moxfield plain-text exports, per config/moxfield-decks.json."
+    help = "Sync decks/deck_cards from Moxfield plain-text exports, per data/moxfield-decks.json."
 
     def handle(self, *args, **options):
         config_path = Path(settings.MOXFIELD_DECKS_CONFIG_PATH)
@@ -32,6 +33,11 @@ class Command(BaseCommand):
                 )
                 continue
 
+            owner = Player.objects.filter(pk=entry["playerId"]).first()
+            if owner is None:
+                self.stderr.write(f"Skipping {commander.name}: playerId {entry['playerId']} not found in players table")
+                continue
+
             export_path = (config_dir / entry["exportFile"]).resolve()
             if not export_path.exists():
                 self.stderr.write(f"Skipping {commander.name}: export file not found at {export_path}")
@@ -46,7 +52,7 @@ class Command(BaseCommand):
                     "collector_number": card["collectorNumber"],
                     "quantity": card["quantity"],
                     "is_foil": card["isFoil"],
-                    "is_commander": self._is_commander_card(card["cardName"], commander.name),
+                    "is_commander": is_commander_card(card["cardName"], commander.name),
                 }
                 for card in parsed
             ]
@@ -57,30 +63,20 @@ class Command(BaseCommand):
                     f'"{commander.name}" — is_commander will be false for all rows'
                 )
 
-            deck_id = self._extract_moxfield_deck_id(entry["moxfieldUrl"])
+            moxfield_deck_id = extract_moxfield_deck_id(entry["moxfieldUrl"])
+            if moxfield_deck_id is None:
+                raise ValueError(f"Could not extract a deck id from Moxfield URL: {entry['moxfieldUrl']}")
 
             with transaction.atomic():
-                replace_deck_cards(commander.id, rows)
-                commander.deck_id = deck_id
-                commander.decklist_url = entry["moxfieldUrl"]
-                commander.save(update_fields=["deck_id", "decklist_url", "updated_at"])
+                deck, _ = Deck.objects.get_or_create(
+                    owner=owner,
+                    commander=commander,
+                    defaults={"source": "moxfield"},
+                )
+                deck.source = "moxfield"
+                deck.moxfield_deck_id = moxfield_deck_id
+                deck.moxfield_url = entry["moxfieldUrl"]
+                deck.save(update_fields=["source", "moxfield_deck_id", "moxfield_url", "updated_at"])
+                replace_deck_cards(deck.id, rows)
 
-            self.stdout.write(f"Synced {commander.name}: {len(rows)} cards from {entry['moxfieldUrl']}")
-
-    @staticmethod
-    def _extract_moxfield_deck_id(url: str) -> str:
-        match = re.search(r"/decks/([^/?#]+)", url)
-        if not match:
-            raise ValueError(f"Could not extract a deck id from Moxfield URL: {url}")
-        return match.group(1)
-
-    @staticmethod
-    def _is_commander_card(card_name: str, commander_name: str) -> bool:
-        """A card is the commander if its (normalized) name matches the commander's
-        own name, front-face-only for split/MDFC cards."""
-        normalized_card = normalize_card_name(card_name).lower()
-        normalized_commander = commander_name.strip().lower()
-        if normalized_card == normalized_commander:
-            return True
-        front_face = normalized_card.split(" // ")[0]
-        return front_face == normalized_commander
+            self.stdout.write(f"Synced {owner.name}'s {commander.name}: {len(rows)} cards from {entry['moxfieldUrl']}")
