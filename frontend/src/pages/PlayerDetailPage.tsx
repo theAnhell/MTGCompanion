@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ExternalLink, Layers, Plus, Trash2 } from 'lucide-react'
-import { deleteDeck, getPlayer, getPlayerSummary, listPlayerDecks } from '../lib/api'
+import {
+  deleteDeck,
+  getPlayer,
+  getPlayerSummary,
+  listPlayerDecks,
+  retireCommander,
+  unretireCommander,
+} from '../lib/api'
 import { useApi } from '../lib/useApi'
 import { LoadingState, ErrorState } from '../components/AsyncState'
 import { SectionCard } from '../components/SectionCard'
@@ -9,6 +16,7 @@ import { StatTile } from '../components/StatTile'
 import { Badge } from '../components/Badge'
 import { DataTable, type Column } from '../components/DataTable'
 import { ImportDeckForm } from '../components/ImportDeckForm'
+import { CardFitFinder } from '../components/CardFitFinder'
 import type { DeckStat, SpeedDeckStat } from '../lib/types'
 
 function fmtDate(d: string | null) {
@@ -16,33 +24,49 @@ function fmtDate(d: string | null) {
   return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-const deckColumns: Column<DeckStat>[] = [
-  {
-    header: 'Commander',
-    sortValue: (d) => d.commanderName,
-    render: (d) => (
-      <span className="flex items-center gap-2 font-medium text-primary">
-        {d.commanderName}
-        {d.retired && <Badge tone="critical">Retired</Badge>}
-      </span>
-    ),
-  },
-  {
-    header: 'EDHREC rank',
-    align: 'right',
-    sortValue: (d) => d.edhrecRank ?? Number.MAX_SAFE_INTEGER,
-    render: (d) => d.edhrecRank ?? '—',
-  },
-  { header: 'Games', align: 'right', sortValue: (d) => d.gamesPlayed, render: (d) => d.gamesPlayed },
-  { header: 'Wins', align: 'right', sortValue: (d) => d.wins, render: (d) => d.wins },
-  { header: 'Win rate', align: 'right', sortValue: (d) => d.winRate, render: (d) => `${d.winRate}%` },
-  {
-    header: 'Last played',
-    align: 'right',
-    sortValue: (d) => d.lastPlayed ?? '',
-    render: (d) => fmtDate(d.lastPlayed),
-  },
-]
+function buildDeckColumns(onToggleRetired: (d: DeckStat) => void, busyCommanderId: string | null): Column<DeckStat>[] {
+  return [
+    {
+      header: 'Commander',
+      sortValue: (d) => d.commanderName,
+      render: (d) => (
+        <span className="flex items-center gap-2 font-medium text-primary">
+          {d.commanderName}
+          {d.retired && <Badge tone="critical">Retired</Badge>}
+        </span>
+      ),
+    },
+    {
+      header: 'EDHREC rank',
+      align: 'right',
+      sortValue: (d) => d.edhrecRank ?? Number.MAX_SAFE_INTEGER,
+      render: (d) => d.edhrecRank ?? '—',
+    },
+    { header: 'Games', align: 'right', sortValue: (d) => d.gamesPlayed, render: (d) => d.gamesPlayed },
+    { header: 'Wins', align: 'right', sortValue: (d) => d.wins, render: (d) => d.wins },
+    { header: 'Win rate', align: 'right', sortValue: (d) => d.winRate, render: (d) => `${d.winRate}%` },
+    {
+      header: 'Last played',
+      align: 'right',
+      sortValue: (d) => d.lastPlayed ?? '',
+      render: (d) => fmtDate(d.lastPlayed),
+    },
+    {
+      header: 'Actions',
+      align: 'right',
+      render: (d) => (
+        <button
+          type="button"
+          onClick={() => onToggleRetired(d)}
+          disabled={busyCommanderId === d.commanderId}
+          className="rounded-md border border-border px-2 py-1 text-xs text-secondary hover:bg-primary/5 disabled:opacity-50"
+        >
+          {d.retired ? 'Unretire' : 'Retire'}
+        </button>
+      ),
+    },
+  ]
+}
 
 function speedColumns(unit: string): Column<SpeedDeckStat>[] {
   return [
@@ -60,10 +84,12 @@ function speedColumns(unit: string): Column<SpeedDeckStat>[] {
 export function PlayerDetailPage() {
   const { id = '' } = useParams()
   const player = useApi(() => getPlayer(id), [id])
-  const summary = useApi(() => getPlayerSummary(id), [id])
+  const [summaryKey, setSummaryKey] = useState(0)
+  const summary = useApi(() => getPlayerSummary(id), [id, summaryKey])
   const [ownedDecksKey, setOwnedDecksKey] = useState(0)
   const ownedDecks = useApi(() => listPlayerDecks(id), [id, ownedDecksKey])
   const [showImportForm, setShowImportForm] = useState(false)
+  const [retiringCommanderId, setRetiringCommanderId] = useState<string | null>(null)
 
   if (player.loading || summary.loading) return <LoadingState />
   if (player.error) return <ErrorState message={player.error} />
@@ -74,6 +100,22 @@ export function PlayerDetailPage() {
   const totalGames = decks.reduce((sum, d) => sum + d.gamesPlayed, 0)
   const totalWins = decks.reduce((sum, d) => sum + d.wins, 0)
   const winRate = totalGames ? Math.round((totalWins / totalGames) * 1000) / 10 : 0
+
+  async function handleToggleRetired(deckStat: DeckStat) {
+    setRetiringCommanderId(deckStat.commanderId)
+    try {
+      if (deckStat.retired) {
+        await unretireCommander(id, deckStat.commanderId)
+      } else {
+        await retireCommander(id, deckStat.commanderId)
+      }
+      setSummaryKey((k) => k + 1)
+    } finally {
+      setRetiringCommanderId(null)
+    }
+  }
+
+  const deckColumns = buildDeckColumns(handleToggleRetired, retiringCommanderId)
 
   async function handleDeleteDeck(deckId: string) {
     if (!confirm('Delete this deck? This removes its decklist permanently.')) return
@@ -176,6 +218,8 @@ export function PlayerDetailPage() {
           !showImportForm && <p className="py-6 text-center text-sm text-muted">No owned decks yet.</p>
         )}
       </SectionCard>
+
+      <CardFitFinder playerId={id} />
 
       <SectionCard title="Commander stats">
         <DataTable columns={deckColumns} rows={decks} rowKey={(d) => d.commanderId} />

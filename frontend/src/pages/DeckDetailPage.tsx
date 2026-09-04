@@ -27,6 +27,12 @@ const cardColumns: Column<OwnedDeckCard>[] = [
   { header: 'Qty', align: 'right', sortValue: (c) => c.quantity, render: (c) => c.quantity },
   { header: 'Set', sortValue: (c) => c.setCode ?? '', render: (c) => c.setCode ?? '—' },
   { header: '#', sortValue: (c) => c.collectorNumber ?? '', render: (c) => c.collectorNumber ?? '—' },
+  {
+    header: 'Inclusion',
+    align: 'right',
+    sortValue: (c) => c.inclusionRate ?? -1,
+    render: (c) => (c.inclusionRate == null ? '—' : `${c.inclusionRate}%`),
+  },
 ]
 
 export function DeckDetailPage() {

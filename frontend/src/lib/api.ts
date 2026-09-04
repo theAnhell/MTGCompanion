@@ -1,8 +1,11 @@
 import type {
   ArchetypeStats,
   BinderCard,
+  CardFitResult,
+  CardSummary,
   CardSyncStatus,
   Commander,
+  EdhrecSyncStatus,
   OwnedDeck,
   OwnedDeckDetail,
   Player,
@@ -57,6 +60,14 @@ export function getCommander(id: string): Promise<Commander> {
   return request<Commander>(`/commanders/${id}`)
 }
 
+export function getEdhrecSyncStatus(): Promise<EdhrecSyncStatus> {
+  return request<EdhrecSyncStatus>('/commanders/edhrec-sync-status')
+}
+
+export function syncEdhrecStats(): Promise<EdhrecSyncStatus> {
+  return request<EdhrecSyncStatus>('/commanders/edhrec-sync', { method: 'POST' })
+}
+
 export function getYearlyReport(year?: number): Promise<YearlySummary> {
   const qs = year ? `?year=${year}` : ''
   return request<YearlySummary>(`/reports/yearly${qs}`)
@@ -104,6 +115,17 @@ export function replaceBinder(playerId: string, exportText: string): Promise<Bin
   })
 }
 
+export function retireCommander(playerId: string, commanderId: string): Promise<void> {
+  return request<void>(`/players/${playerId}/retired-decks`, {
+    method: 'POST',
+    body: JSON.stringify({ commanderId }),
+  })
+}
+
+export function unretireCommander(playerId: string, commanderId: string): Promise<void> {
+  return request<void>(`/players/${playerId}/retired-decks/${commanderId}`, { method: 'DELETE' })
+}
+
 export function getRecommendations(deckId: string): Promise<Recommendation[]> {
   return request<Recommendation[]>(`/decks/${deckId}/recommendations`)
 }
@@ -132,4 +154,13 @@ export function getCardSyncStatus(): Promise<CardSyncStatus> {
 
 export function syncCards(): Promise<CardSyncStatus> {
   return request<CardSyncStatus>('/cards/sync', { method: 'POST' })
+}
+
+export function searchCards(query: string): Promise<CardSummary[]> {
+  return request<CardSummary[]>(`/cards?search=${encodeURIComponent(query)}`)
+}
+
+export function getCardFit(playerId: string, cardName: string, limit?: number): Promise<CardFitResult[]> {
+  const qs = new URLSearchParams({ cardName, ...(limit ? { limit: String(limit) } : {}) })
+  return request<CardFitResult[]>(`/players/${playerId}/card-fit?${qs}`)
 }

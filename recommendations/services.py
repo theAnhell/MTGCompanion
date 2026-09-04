@@ -6,7 +6,7 @@ from binder.models import BinderCard
 from cards.models import Card
 from cards.services import get_deck_role_counts
 from commanders.models import CommanderCardStat
-from commanders.services import is_stale, sync_commander_card_stats
+from commanders.services import get_edhrec_url, is_stale, sync_commander_card_stats
 from decks.models import Deck, DeckCard
 
 from .models import Recommendation
@@ -71,6 +71,54 @@ def get_candidate_removes(deck_id, threshold: float | None = None, exclude_basic
         commander_id=deck.commander_id, card_name__in=deck_card_names, inclusion_rate__lte=threshold
     )
     return [{"card_name": s.card_name, "inclusion_rate": s.inclusion_rate} for s in stats]
+
+
+def find_best_decks_for_card(player_id, card_name: str, limit: int = 5) -> list[dict]:
+    """The inverse of get_candidate_adds: given one card, rank the player's
+    OTHER decks (excluding any that already run it) by how strongly their
+    commander's EDHREC page recommends it. Decks whose commander has no
+    CommanderCardStat row for this card are dropped entirely — same "no data,
+    no suggestion" convention as get_candidate_adds."""
+    decks = list(Deck.objects.filter(owner_id=player_id).select_related("commander"))
+    if not decks:
+        return []
+
+    already_has_deck_ids = set(
+        DeckCard.objects.filter(deck_id__in=[d.id for d in decks], card_name=card_name).values_list(
+            "deck_id", flat=True
+        )
+    )
+    candidate_decks = [d for d in decks if d.id not in already_has_deck_ids]
+    if not candidate_decks:
+        return []
+
+    for commander in {d.commander for d in candidate_decks}:
+        if is_stale(commander):
+            try:
+                sync_commander_card_stats(commander.id)
+            except Exception:
+                continue
+
+    stats_by_commander = {
+        s.commander_id: s.inclusion_rate
+        for s in CommanderCardStat.objects.filter(
+            commander_id__in={d.commander_id for d in candidate_decks}, card_name=card_name
+        )
+    }
+
+    results = [
+        {
+            "deck_id": d.id,
+            "deck_name": d.name or d.commander.name,
+            "commander_name": d.commander.name,
+            "inclusion_rate": stats_by_commander[d.commander_id],
+            "edhrec_url": get_edhrec_url(d.commander),
+        }
+        for d in candidate_decks
+        if d.commander_id in stats_by_commander
+    ]
+    results.sort(key=lambda r: r["inclusion_rate"], reverse=True)
+    return results[:limit]
 
 
 def get_role_gap_adds(deck_id) -> list[dict]:

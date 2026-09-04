@@ -136,3 +136,35 @@ def sync_commander_card_stats(commander_id) -> int:
 
 def get_commander_card_stats(commander_id):
     return CommanderCardStat.objects.filter(commander_id=commander_id).order_by("-inclusion_rate")
+
+
+def _commanders_with_decks():
+    return Commander.objects.filter(decks__isnull=False).distinct()
+
+
+def get_edhrec_sync_status() -> dict:
+    commanders = list(_commanders_with_decks())
+    synced_ats = [c.edhrec_synced_at for c in commanders if c.edhrec_synced_at]
+    return {
+        "commander_count": len(commanders),
+        "stale_count": sum(1 for c in commanders if is_stale(c)),
+        "oldest_synced_at": min(synced_ats) if synced_ats else None,
+        "newest_synced_at": max(synced_ats) if synced_ats else None,
+        "failed_commander_names": [],
+    }
+
+
+def sync_all_commander_card_stats() -> dict:
+    """Refreshes CommanderCardStat for every commander with an owned deck.
+    One commander's EDHREC fetch failing (bad slug, timeout) shouldn't abort
+    the rest of the batch — same resilience as sync_edhrec_stats.py's loop."""
+    failed_names = []
+    for commander in _commanders_with_decks():
+        try:
+            sync_commander_card_stats(commander.id)
+        except requests.RequestException:
+            failed_names.append(commander.name)
+
+    status = get_edhrec_sync_status()
+    status["failed_commander_names"] = failed_names
+    return status

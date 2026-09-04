@@ -26,10 +26,19 @@ Quick start
 
 Re-importing a fresh export
 ----------------------------
-Drop the new export at `data/AllGames.json` (replacing the copy already
-there) and re-run `import_games` — it's idempotent (upserts by the source
-app's own UUIDs via Postgres `ON CONFLICT ... DO UPDATE`, same as the Node
-version's Knex upserts) and never deletes existing rows.
+1. Replace `data/AllGames.json` with the new export (same filename, same
+   path — this is `GAMES_EXPORT_PATH` in `.env`).
+2. Re-run the import:
+   ```
+   docker compose exec app python manage.py import_games
+   ```
+3. Check the summary line it prints (games/game_players/players/commanders
+   upserted) to confirm the new games came through.
+
+It's idempotent (upserts by the source app's own UUIDs via Postgres
+`ON CONFLICT ... DO UPDATE`, same as the Node version's Knex upserts) and
+never deletes existing rows, so it's always safe to re-run — no need to
+restart or rebuild the containers first.
 
 Player identity
 ----------------

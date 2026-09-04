@@ -3,11 +3,13 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED
 from rest_framework.views import APIView
 
+from cards.models import Card
 from decks.models import Deck
+from players.models import Player
 
 from .models import Recommendation
-from .serializers import RecommendationSerializer
-from .services import generate_recommendations, list_recommendations, update_recommendation
+from .serializers import CardFitSerializer, RecommendationSerializer
+from .services import find_best_decks_for_card, generate_recommendations, list_recommendations, update_recommendation
 
 
 def _require_deck(deck_id):
@@ -45,3 +47,24 @@ class RecommendationDetailView(APIView):
 
         rec = update_recommendation(id, status=status_value, applied=applied)
         return Response(RecommendationSerializer(rec).data)
+
+
+class PlayerCardFitView(APIView):
+    def get(self, request, id):
+        if not Player.objects.filter(pk=id).exists():
+            raise NotFound(f"Player not found: {id}")
+
+        card_name = request.query_params.get("cardName")
+        if not card_name:
+            raise ValidationError("cardName is required")
+        if not Card.objects.filter(pk=card_name).exists():
+            raise NotFound(f"Card not found: {card_name}")
+
+        limit = request.query_params.get("limit", 5)
+        try:
+            limit = int(limit)
+        except ValueError:
+            raise ValidationError("limit must be an integer")
+
+        results = find_best_decks_for_card(id, card_name, limit=limit)
+        return Response(CardFitSerializer(results, many=True).data)

@@ -28,6 +28,7 @@ export interface OwnedDeckCard {
   quantity: number
   isFoil: boolean
   isCommander: boolean
+  inclusionRate: number | null
 }
 
 export interface OwnedDeck {
@@ -83,6 +84,29 @@ export type ArchetypeStats = Record<ArchetypeRole, ArchetypeRoleStat>
 export interface CardSyncStatus {
   cardCount: number
   syncedAt: string | null
+}
+
+export interface CardSummary {
+  name: string
+  manaCost: string | null
+  typeLine: string | null
+  colorIdentity: string[] | null
+}
+
+export interface EdhrecSyncStatus {
+  commanderCount: number
+  staleCount: number
+  oldestSyncedAt: string | null
+  newestSyncedAt: string | null
+  failedCommanderNames: string[]
+}
+
+export interface CardFitResult {
+  deckId: string
+  deckName: string
+  commanderName: string
+  inclusionRate: number
+  edhrecUrl: string
 }
 
 export interface DeckStat {

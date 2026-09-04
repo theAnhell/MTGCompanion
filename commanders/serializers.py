@@ -18,3 +18,13 @@ class CommanderSerializer(serializers.ModelSerializer):
 
     def get_edhrecUrl(self, obj) -> str:
         return get_edhrec_url(obj)
+
+
+class EdhrecSyncStatusSerializer(serializers.Serializer):
+    commanderCount = serializers.IntegerField(source="commander_count")
+    staleCount = serializers.IntegerField(source="stale_count")
+    oldestSyncedAt = serializers.DateTimeField(source="oldest_synced_at", allow_null=True)
+    newestSyncedAt = serializers.DateTimeField(source="newest_synced_at", allow_null=True)
+    failedCommanderNames = serializers.ListField(
+        source="failed_commander_names", child=serializers.CharField()
+    )

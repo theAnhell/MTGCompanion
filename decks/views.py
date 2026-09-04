@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from cards.services import get_deck_role_counts
 from commanders.models import Commander
+from commanders.services import get_commander_card_stats
 from imports.moxfield_parser import extract_moxfield_deck_id, is_commander_card, parse_moxfield_export
 from players.services import get_family_ids, resolve_canonical_player
 
@@ -20,6 +21,11 @@ from .services import (
     remove_retired_deck,
     replace_deck_cards,
 )
+
+
+def _deck_detail_context(commander_id) -> dict:
+    stats_by_card_name = {s.card_name: s.inclusion_rate for s in get_commander_card_stats(commander_id)}
+    return {"stats_by_card_name": stats_by_card_name}
 
 
 def _require_canonical_player(identifier):
@@ -116,7 +122,8 @@ class DeckListCreateView(APIView):
             )
             replace_deck_cards(deck.id, rows)
 
-        return Response(DeckDetailSerializer(get_deck(deck.id)).data, status=HTTP_201_CREATED)
+        context = _deck_detail_context(commander.id)
+        return Response(DeckDetailSerializer(get_deck(deck.id), context=context).data, status=HTTP_201_CREATED)
 
 
 class DeckDetailView(APIView):
@@ -124,7 +131,8 @@ class DeckDetailView(APIView):
         deck = get_deck(id)
         if deck is None:
             raise NotFound(f"Deck not found: {id}")
-        return Response(DeckDetailSerializer(deck).data)
+        context = _deck_detail_context(deck.commander_id)
+        return Response(DeckDetailSerializer(deck, context=context).data)
 
     def delete(self, request, id):
         deck = Deck.objects.filter(pk=id).first()
@@ -166,4 +174,5 @@ class DeckCardsView(APIView):
         rows = _parse_export_to_rows(export_text, deck.commander.name)
         replace_deck_cards(deck.id, rows)
 
-        return Response(DeckDetailSerializer(get_deck(deck.id)).data)
+        context = _deck_detail_context(deck.commander_id)
+        return Response(DeckDetailSerializer(get_deck(deck.id), context=context).data)
