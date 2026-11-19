@@ -36,7 +36,7 @@ def parse_moxfield_export(text: str) -> list[dict]:
         cards.append(
             {
                 "quantity": int(quantity),
-                "cardName": card_name.strip(),
+                "cardName": normalize_card_name(card_name),
                 "setCode": set_code.upper(),
                 "collectorNumber": collector_number,
                 "isFoil": is_foil,
