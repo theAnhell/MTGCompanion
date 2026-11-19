@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 
 from cards.models import Card
 from decks.models import Deck
-from players.models import Player
+from players.services import resolve_canonical_player
 
 from .models import Recommendation
 from .serializers import BinderCardFitSerializer, CardFitSerializer, RecommendationSerializer
@@ -21,6 +21,13 @@ from .services import (
 def _require_deck(deck_id):
     if not Deck.objects.filter(pk=deck_id).exists():
         raise NotFound(f"Deck not found: {deck_id}")
+
+
+def _require_canonical_player(identifier):
+    player = resolve_canonical_player(identifier)
+    if player is None:
+        raise NotFound(f"Player not found: {identifier}")
+    return player
 
 
 class DeckRecommendationsView(APIView):
@@ -57,8 +64,7 @@ class RecommendationDetailView(APIView):
 
 class PlayerCardFitView(APIView):
     def get(self, request, id):
-        if not Player.objects.filter(pk=id).exists():
-            raise NotFound(f"Player not found: {id}")
+        player = _require_canonical_player(id)
 
         card_name = request.query_params.get("cardName")
         if not card_name:
@@ -72,14 +78,13 @@ class PlayerCardFitView(APIView):
         except ValueError:
             raise ValidationError("limit must be an integer")
 
-        results = find_best_decks_for_card(id, card_name, limit=limit)
+        results = find_best_decks_for_card(player.id, card_name, limit=limit)
         return Response(CardFitSerializer(results, many=True).data)
 
 
 class PlayerBinderFitView(APIView):
     def get(self, request, id):
-        if not Player.objects.filter(pk=id).exists():
-            raise NotFound(f"Player not found: {id}")
+        player = _require_canonical_player(id)
 
-        results = find_binder_card_fits(id)
+        results = find_binder_card_fits(player.id)
         return Response(BinderCardFitSerializer(results, many=True).data)
