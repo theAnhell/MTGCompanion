@@ -7,3 +7,8 @@ class BinderCardSerializer(serializers.Serializer):
     collectorNumber = serializers.CharField(source="collector_number", allow_null=True)
     quantity = serializers.IntegerField()
     isFoil = serializers.BooleanField(source="is_foil")
+    scryfallId = serializers.SerializerMethodField()
+
+    def get_scryfallId(self, obj) -> str | None:
+        sid = self.context.get("scryfall_ids_by_name", {}).get(obj.card_name)
+        return str(sid) if sid else None

@@ -17,6 +17,7 @@ class DeckCardSerializer(serializers.Serializer):
     isFoil = serializers.BooleanField(source="is_foil")
     isCommander = serializers.BooleanField(source="is_commander")
     inclusionRate = serializers.SerializerMethodField()
+    scryfallId = serializers.SerializerMethodField()
 
     def get_inclusionRate(self, obj) -> float | None:
         # None means EDHREC has no data for this card with this commander —
@@ -24,6 +25,10 @@ class DeckCardSerializer(serializers.Serializer):
         # defaulting to 0.
         rate = self.context.get("stats_by_card_name", {}).get(obj.card_name)
         return float(rate) if rate is not None else None
+
+    def get_scryfallId(self, obj) -> str | None:
+        sid = self.context.get("scryfall_ids_by_name", {}).get(obj.card_name)
+        return str(sid) if sid else None
 
 
 class DeckSerializer(serializers.Serializer):

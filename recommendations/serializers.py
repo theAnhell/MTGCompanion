@@ -10,12 +10,26 @@ class RecommendationSerializer(serializers.Serializer):
         source="inclusion_rate", max_digits=5, decimal_places=1, coerce_to_string=False
     )
     role = serializers.CharField(allow_null=True)
+    sourceType = serializers.CharField(source="source_type", allow_null=True)
+    sourceDeckId = serializers.UUIDField(source="source_deck_id", allow_null=True)
+    sourceDeckName = serializers.CharField(source="source_deck_name", allow_null=True)
     status = serializers.CharField()
     appliedAt = serializers.DateTimeField(source="applied_at", allow_null=True)
     createdAt = serializers.DateTimeField(source="created_at")
 
 
 class CardFitSerializer(serializers.Serializer):
+    deckId = serializers.UUIDField(source="deck_id")
+    deckName = serializers.CharField(source="deck_name")
+    commanderName = serializers.CharField(source="commander_name")
+    inclusionRate = serializers.DecimalField(
+        source="inclusion_rate", max_digits=5, decimal_places=1, coerce_to_string=False
+    )
+    edhrecUrl = serializers.CharField(source="edhrec_url")
+
+
+class BinderCardFitSerializer(serializers.Serializer):
+    cardName = serializers.CharField(source="card_name")
     deckId = serializers.UUIDField(source="deck_id")
     deckName = serializers.CharField(source="deck_name")
     commanderName = serializers.CharField(source="commander_name")

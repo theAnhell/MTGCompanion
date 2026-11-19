@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Check, CheckCheck, RotateCcw, Sparkles, X } from 'lucide-react'
 import { ApiError, generateRecommendations, getRecommendations, updateRecommendation } from '../lib/api'
 import { useApi } from '../lib/useApi'
@@ -27,6 +28,15 @@ function RecommendationRow({ rec, onChange }: { rec: Recommendation; onChange: (
         <span className="truncate font-medium text-primary">{rec.cardName}</span>
         <span className="tabular-nums shrink-0 text-muted">{rec.inclusionRate}%</span>
         {rec.role && <Badge tone="good">{rec.role[0].toUpperCase() + rec.role.slice(1)}</Badge>}
+        {rec.sourceType === 'binder' && <Badge>Binder</Badge>}
+        {rec.sourceType === 'deck' && rec.sourceDeckId && (
+          <Link
+            to={`/decks/${rec.sourceDeckId}`}
+            className="truncate text-xs text-muted hover:text-series-1 hover:underline"
+          >
+            from {rec.sourceDeckName}
+          </Link>
+        )}
         {rec.appliedAt ? (
           <Badge tone="good">Made</Badge>
         ) : rec.status === 'approved' ? (

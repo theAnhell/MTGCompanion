@@ -2,6 +2,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from cards.models import Card
 from imports.moxfield_parser import parse_moxfield_export
 from players.services import resolve_canonical_player
 
@@ -16,11 +17,17 @@ def _require_canonical_player(identifier):
     return player
 
 
+def _scryfall_id_context(cards) -> dict:
+    card_names = [c.card_name for c in cards]
+    return {"scryfall_ids_by_name": dict(Card.objects.filter(name__in=card_names).values_list("name", "scryfall_id"))}
+
+
 class BinderView(APIView):
     def get(self, request, id):
         player = _require_canonical_player(id)
-        cards = list_binder_cards(player.id)
-        return Response(BinderCardSerializer(cards, many=True).data)
+        cards = list(list_binder_cards(player.id))
+        context = _scryfall_id_context(cards)
+        return Response(BinderCardSerializer(cards, many=True, context=context).data)
 
     def put(self, request, id):
         player = _require_canonical_player(id)
@@ -43,5 +50,6 @@ class BinderView(APIView):
         ]
 
         replace_binder_cards(player.id, rows)
-        cards = list_binder_cards(player.id)
-        return Response(BinderCardSerializer(cards, many=True).data)
+        cards = list(list_binder_cards(player.id))
+        context = _scryfall_id_context(cards)
+        return Response(BinderCardSerializer(cards, many=True, context=context).data)

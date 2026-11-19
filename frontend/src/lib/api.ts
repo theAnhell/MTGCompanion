@@ -1,6 +1,7 @@
 import type {
   ArchetypeStats,
   BinderCard,
+  BinderCardFit,
   CardFitResult,
   CardSummary,
   CardSyncStatus,
@@ -163,4 +164,8 @@ export function searchCards(query: string): Promise<CardSummary[]> {
 export function getCardFit(playerId: string, cardName: string, limit?: number): Promise<CardFitResult[]> {
   const qs = new URLSearchParams({ cardName, ...(limit ? { limit: String(limit) } : {}) })
   return request<CardFitResult[]>(`/players/${playerId}/card-fit?${qs}`)
+}
+
+export function getBinderFits(playerId: string): Promise<BinderCardFit[]> {
+  return request<BinderCardFit[]>(`/players/${playerId}/binder-fits`)
 }

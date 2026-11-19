@@ -8,8 +8,14 @@ from decks.models import Deck
 from players.models import Player
 
 from .models import Recommendation
-from .serializers import CardFitSerializer, RecommendationSerializer
-from .services import find_best_decks_for_card, generate_recommendations, list_recommendations, update_recommendation
+from .serializers import BinderCardFitSerializer, CardFitSerializer, RecommendationSerializer
+from .services import (
+    find_best_decks_for_card,
+    find_binder_card_fits,
+    generate_recommendations,
+    list_recommendations,
+    update_recommendation,
+)
 
 
 def _require_deck(deck_id):
@@ -68,3 +74,12 @@ class PlayerCardFitView(APIView):
 
         results = find_best_decks_for_card(id, card_name, limit=limit)
         return Response(CardFitSerializer(results, many=True).data)
+
+
+class PlayerBinderFitView(APIView):
+    def get(self, request, id):
+        if not Player.objects.filter(pk=id).exists():
+            raise NotFound(f"Player not found: {id}")
+
+        results = find_binder_card_fits(id)
+        return Response(BinderCardFitSerializer(results, many=True).data)

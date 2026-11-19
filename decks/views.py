@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
+from cards.models import Card
 from cards.services import get_deck_role_counts
 from commanders.models import Commander
 from commanders.services import get_commander_card_stats
@@ -23,9 +24,11 @@ from .services import (
 )
 
 
-def _deck_detail_context(commander_id) -> dict:
-    stats_by_card_name = {s.card_name: s.inclusion_rate for s in get_commander_card_stats(commander_id)}
-    return {"stats_by_card_name": stats_by_card_name}
+def _deck_detail_context(deck: Deck) -> dict:
+    stats_by_card_name = {s.card_name: s.inclusion_rate for s in get_commander_card_stats(deck.commander_id)}
+    card_names = [c.card_name for c in deck.cards.all()]
+    scryfall_ids_by_name = dict(Card.objects.filter(name__in=card_names).values_list("name", "scryfall_id"))
+    return {"stats_by_card_name": stats_by_card_name, "scryfall_ids_by_name": scryfall_ids_by_name}
 
 
 def _require_canonical_player(identifier):
@@ -122,8 +125,9 @@ class DeckListCreateView(APIView):
             )
             replace_deck_cards(deck.id, rows)
 
-        context = _deck_detail_context(commander.id)
-        return Response(DeckDetailSerializer(get_deck(deck.id), context=context).data, status=HTTP_201_CREATED)
+        created = get_deck(deck.id)
+        context = _deck_detail_context(created)
+        return Response(DeckDetailSerializer(created, context=context).data, status=HTTP_201_CREATED)
 
 
 class DeckDetailView(APIView):
@@ -131,7 +135,7 @@ class DeckDetailView(APIView):
         deck = get_deck(id)
         if deck is None:
             raise NotFound(f"Deck not found: {id}")
-        context = _deck_detail_context(deck.commander_id)
+        context = _deck_detail_context(deck)
         return Response(DeckDetailSerializer(deck, context=context).data)
 
     def delete(self, request, id):
@@ -174,5 +178,6 @@ class DeckCardsView(APIView):
         rows = _parse_export_to_rows(export_text, deck.commander.name)
         replace_deck_cards(deck.id, rows)
 
-        context = _deck_detail_context(deck.commander_id)
-        return Response(DeckDetailSerializer(get_deck(deck.id), context=context).data)
+        updated = get_deck(deck.id)
+        context = _deck_detail_context(updated)
+        return Response(DeckDetailSerializer(updated, context=context).data)

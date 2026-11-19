@@ -29,6 +29,7 @@ export interface OwnedDeckCard {
   isFoil: boolean
   isCommander: boolean
   inclusionRate: number | null
+  scryfallId: string | null
 }
 
 export interface OwnedDeck {
@@ -55,11 +56,14 @@ export interface BinderCard {
   collectorNumber: string | null
   quantity: number
   isFoil: boolean
+  scryfallId: string | null
 }
 
 export type RecommendationAction = 'add' | 'remove'
 export type RecommendationStatus = 'proposed' | 'approved' | 'ignored'
 export type ArchetypeRole = 'ramp' | 'draw' | 'removal' | 'land'
+
+export type RecommendationSourceType = 'binder' | 'deck'
 
 export interface Recommendation {
   id: string
@@ -68,6 +72,9 @@ export interface Recommendation {
   cardName: string
   inclusionRate: number
   role: ArchetypeRole | null
+  sourceType: RecommendationSourceType | null
+  sourceDeckId: string | null
+  sourceDeckName: string | null
   status: RecommendationStatus
   appliedAt: string | null
   createdAt: string
@@ -99,6 +106,15 @@ export interface EdhrecSyncStatus {
   oldestSyncedAt: string | null
   newestSyncedAt: string | null
   failedCommanderNames: string[]
+}
+
+export interface BinderCardFit {
+  cardName: string
+  deckId: string
+  deckName: string
+  commanderName: string
+  inclusionRate: number
+  edhrecUrl: string
 }
 
 export interface CardFitResult {

@@ -27,6 +27,10 @@ class Recommendation(models.Model):
         REMOVAL = "removal", "Removal"
         LAND = "land", "Land"
 
+    class SourceType(models.TextChoices):
+        BINDER = "binder", "Binder"
+        DECK = "deck", "Deck"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Denormalized from deck.owner at creation time — set once, not kept in
     # sync if a deck's ownership ever changes, since that's not a thing this
@@ -40,6 +44,18 @@ class Recommendation(models.Model):
     # specifically exists to close an archetype role gap (see
     # recommendations.services.get_role_gap_adds).
     role = models.CharField(max_length=10, choices=Role.choices, null=True, blank=True)
+    # Where an ADD candidate already exists in the player's collection —
+    # binder or another owned deck. Null for REMOVE rows, which are already
+    # in this deck by definition. Binder always wins over a deck source (see
+    # recommendations.services.get_card_sources): a card in the binder can
+    # be added here for free, one already in another deck would need pulling
+    # from there first.
+    source_type = models.CharField(max_length=10, choices=SourceType.choices, null=True, blank=True)
+    # Denormalized deck name (not just id) for the same reason `player` is
+    # denormalized above: a stable label even if the source deck is later
+    # renamed or deleted, without an extra join to render it.
+    source_deck_id = models.UUIDField(null=True, blank=True)
+    source_deck_name = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PROPOSED)
     applied_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

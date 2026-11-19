@@ -42,6 +42,42 @@ def get_player_collection_card_names(player_id, exclude_deck_id=None) -> set[str
     return binder_names | deck_names
 
 
+def get_card_sources(player_id, card_names, exclude_deck_id=None) -> dict[str, dict]:
+    """For each of the given card names, where in the player's collection it
+    already exists — binder or another owned deck. Binder always wins over a
+    deck: a binder card can be added for free, a card in another deck would
+    have to be pulled from there first. Card names with no source in the
+    collection (e.g. a role-gap add is only reachable via EDHREC data, not
+    something actually owned) are simply absent from the result."""
+    if not card_names:
+        return {}
+
+    deck_cards = DeckCard.objects.filter(deck__owner_id=player_id, card_name__in=card_names).select_related(
+        "deck", "deck__commander"
+    )
+    if exclude_deck_id:
+        deck_cards = deck_cards.exclude(deck_id=exclude_deck_id)
+
+    sources: dict[str, dict] = {}
+    for dc in deck_cards:
+        sources.setdefault(
+            dc.card_name,
+            {
+                "source_type": Recommendation.SourceType.DECK,
+                "source_deck_id": dc.deck_id,
+                "source_deck_name": dc.deck.name or dc.deck.commander.name,
+            },
+        )
+
+    binder_names = set(
+        BinderCard.objects.filter(player_id=player_id, card_name__in=card_names).values_list("card_name", flat=True)
+    )
+    for name in binder_names:
+        sources[name] = {"source_type": Recommendation.SourceType.BINDER, "source_deck_id": None, "source_deck_name": None}
+
+    return sources
+
+
 def get_candidate_adds(deck_id, threshold: float | None = None) -> list[dict]:
     threshold = settings.RECOMMENDATION_ADD_THRESHOLD if threshold is None else threshold
     deck = Deck.objects.get(pk=deck_id)
@@ -121,6 +157,56 @@ def find_best_decks_for_card(player_id, card_name: str, limit: int = 5) -> list[
     return results[:limit]
 
 
+def find_binder_card_fits(player_id) -> list[dict]:
+    """For every card in the player's binder, the single deck (among the
+    player's own) that wants it most per EDHREC — skipping decks that
+    already run the card. Batched in a handful of queries rather than
+    looping find_best_decks_for_card per card, since a binder can run into
+    the hundreds of cards. Cards with no matching deck are simply absent
+    from the result — the point is a worklist of binder cards worth moving
+    into a deck, not a review of the whole binder."""
+    binder_card_names = set(BinderCard.objects.filter(player_id=player_id).values_list("card_name", flat=True))
+    if not binder_card_names:
+        return []
+
+    decks = list(Deck.objects.filter(owner_id=player_id).select_related("commander"))
+    if not decks:
+        return []
+
+    already_in_deck = set(
+        DeckCard.objects.filter(deck_id__in=[d.id for d in decks], card_name__in=binder_card_names).values_list(
+            "deck_id", "card_name"
+        )
+    )
+
+    stats_by_commander: dict = {}
+    for s in CommanderCardStat.objects.filter(
+        commander_id__in={d.commander_id for d in decks}, card_name__in=binder_card_names
+    ).values("commander_id", "card_name", "inclusion_rate"):
+        stats_by_commander.setdefault(s["commander_id"], {})[s["card_name"]] = s["inclusion_rate"]
+
+    best_by_card: dict[str, dict] = {}
+    for d in decks:
+        card_rates = stats_by_commander.get(d.commander_id)
+        if not card_rates:
+            continue
+        for card_name, rate in card_rates.items():
+            if (d.id, card_name) in already_in_deck:
+                continue
+            current_best = best_by_card.get(card_name)
+            if current_best is None or rate > current_best["inclusion_rate"]:
+                best_by_card[card_name] = {
+                    "card_name": card_name,
+                    "deck_id": d.id,
+                    "deck_name": d.name or d.commander.name,
+                    "commander_name": d.commander.name,
+                    "inclusion_rate": rate,
+                    "edhrec_url": get_edhrec_url(d.commander),
+                }
+
+    return sorted(best_by_card.values(), key=lambda r: r["inclusion_rate"], reverse=True)
+
+
 def get_role_gap_adds(deck_id) -> list[dict]:
     """For each archetype role under target (settings.DECK_TARGET_*), suggest
     collection cards tagged with that role that also appear in the
@@ -177,6 +263,10 @@ def generate_recommendations(deck_id) -> list[Recommendation]:
     for c in get_role_gap_adds(deck_id):
         adds_by_name[c["card_name"]] = c
 
+    sources_by_name = get_card_sources(deck.owner_id, list(adds_by_name.keys()), exclude_deck_id=deck_id)
+    for card_name, source in sources_by_name.items():
+        adds_by_name[card_name] = {**adds_by_name[card_name], **source}
+
     candidates = [(Recommendation.Action.ADD, c) for c in adds_by_name.values()] + [
         (Recommendation.Action.REMOVE, c) for c in get_candidate_removes(deck_id)
     ]
@@ -197,6 +287,9 @@ def generate_recommendations(deck_id) -> list[Recommendation]:
                 card_name=candidate["card_name"],
                 inclusion_rate=candidate["inclusion_rate"],
                 role=candidate.get("role"),
+                source_type=candidate.get("source_type"),
+                source_deck_id=candidate.get("source_deck_id"),
+                source_deck_name=candidate.get("source_deck_name"),
             )
             for action, candidate in candidates
             if (action, candidate["card_name"]) not in decided_keys

@@ -10,6 +10,7 @@ import { ArchetypeStatTile } from '../components/ArchetypeStatTile'
 import { Badge } from '../components/Badge'
 import { DataTable, type Column } from '../components/DataTable'
 import { RecommendationsPanel } from '../components/RecommendationsPanel'
+import { CardHoverName } from '../components/CardHoverName'
 import type { OwnedDeckCard } from '../lib/types'
 
 const cardColumns: Column<OwnedDeckCard>[] = [
@@ -18,7 +19,7 @@ const cardColumns: Column<OwnedDeckCard>[] = [
     sortValue: (c) => c.cardName,
     render: (c) => (
       <span className="flex items-center gap-2 font-medium text-primary">
-        {c.cardName}
+        <CardHoverName name={c.cardName} scryfallId={c.scryfallId} />
         {c.isCommander && <Badge tone="good">Commander</Badge>}
         {c.isFoil && <Badge>Foil</Badge>}
       </span>
