@@ -40,6 +40,25 @@ It's idempotent (upserts by the source app's own UUIDs via Postgres
 never deletes existing rows, so it's always safe to re-run — no need to
 restart or rebuild the containers first.
 
+Running tests
+-------------
+```
+docker compose exec app python manage.py test
+```
+With coverage:
+```
+docker compose exec app coverage run --source='.' manage.py test
+docker compose exec app coverage report -m
+```
+`.coveragerc` omits migrations, `manage.py`, and the WSGI/ASGI entry points.
+Each app's tests live under `<app>/tests/` (`test_services.py`/`test_views.py`,
+matching the `services.py`/`views.py` split). External HTTP calls (EDHREC,
+Scryfall) are mocked — the suite never makes real network requests.
+Not covered: the thinner management-command wrappers
+(`import_retired_decks`, `import_moxfield_decks`, `sync_edhrec_stats`'s CLI
+layer) beyond `import_games`, since they're mostly shells over
+already-tested service functions.
+
 Player identity
 ----------------
 Same mechanism as the Node version: `data/player-merges.json` (already

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .models import Game, GamePlayer
 
@@ -44,9 +44,10 @@ class EnrichedGamePlayerFilters:
     year: int | None = None
 
 
-def list_enriched_game_players(filters: EnrichedGamePlayerFilters = field(default_factory=EnrichedGamePlayerFilters)):
+def list_enriched_game_players(filters: EnrichedGamePlayerFilters | None = None):
     """Joined game_players+games+commanders rows, the shared input for
     streaks/yearly aggregation (mirrors games.repository#listEnrichedGamePlayers)."""
+    filters = filters or EnrichedGamePlayerFilters()
     queryset = (
         GamePlayer.objects.select_related("game", "commander")
         .order_by("game__created_on")
